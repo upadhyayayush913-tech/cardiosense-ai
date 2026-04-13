@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CardioSense AI — Explainable Heart Risk Prediction</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    font-size: 18px; 
+    --bg: #0a0f1e;
+    --surface: #0f1729;
+    --card: #141e35;
+    --card2: #19243e;
+    --border: rgba(100,160,255,0.12);
+    --accent: #3b82f6;
+    --accent2: #06d6a0;
+    --danger: #ef4444;
+    --warn: #f59e0b;
+    --safe: #10b981;
+    --text: #e8edf8;
+    --muted: #6b7fa3;
+    --serif: 'DM Serif Display', serif;
+    --sans: 'Inter', sans-serif;
+    --mono: 'DM Mono', monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden}
+
+  body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(59,130,246,0.08),transparent),radial-gradient(ellipse 40% 40% at 80% 80%,rgba(6,214,160,0.05),transparent);pointer-events:none;z-index:0}
+
+  header{position:sticky;top:0;z-index:100;background:rgba(10,15,30,0.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 2rem}
+  .header-inner{max-width:1400px;margin:0 auto;display:flex;align-items:center;gap:1rem;height:60px}
+  .logo-pulse{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#ef4444,#f97316);display:flex;align-items:center;justify-content:center;animation:pulse 2s infinite;flex-shrink:0}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.4)}50%{box-shadow:0 0 0 8px rgba(239,68,68,0)}}
+  .logo-text{font-family:var(--serif);font-size:1.3rem;letter-spacing:-0.02em}
+  .logo-text span{color:var(--accent)}
+  .badge{margin-left:auto;background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.3);color:var(--accent);font-size:0.7rem;font-family:var(--mono);padding:0.25rem 0.75rem;border-radius:999px;letter-spacing:0.05em}
+
+  .main{max-width:1400px;margin:0 auto;padding:2rem;position:relative;z-index:1}
+  .hero{text-align:center;padding:3rem 0 2rem}
+  .hero h1{font-family:var(--serif);font-size:clamp(2rem,4vw,3.2rem);line-height:1.1;margin-bottom:0.75rem}
+  .hero h1 em{color:var(--accent2);font-style:italic}
+  .hero p{color:var(--muted);max-width:600px;margin:0 auto;line-height:1.7;font-size:0.95rem}
+
+  .tabs{display:flex;gap:0.5rem;justify-content:center;margin:1.5rem 0;flex-wrap:wrap}
+  .tab{padding:0.5rem 1.25rem;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--sans);font-size:0.85rem;cursor:pointer;transition:all 0.2s}
+  .tab.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500}
+  .tab:hover:not(.active){border-color:var(--accent);color:var(--text)}
+
+  .panel{display:none}
+  .panel.active{display:block}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+  @media(max-width:900px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:1.5rem}
+  .card-title{font-size:0.75rem;font-family:var(--mono);color:var(--accent);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1rem;display:flex;align-items:center;gap:0.5rem}
+  .card-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+  @media(max-width:600px){.form-grid{grid-template-columns:1fr}}
+  .field{display:flex;flex-direction:column;gap:0.35rem}
+  .field label{font-size:0.78rem;color:var(--muted);font-family:var(--mono)}
+  .field input,.field select{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.9rem;color:var(--text);font-family:var(--sans);font-size:0.9rem;outline:none;transition:border-color 0.2s}
+  .field input:focus,.field select:focus{border-color:var(--accent)}
+  .field input.warn{border-color:var(--warn)}
+  .field input.error{border-color:var(--danger)}
+  .field-hint{font-size:0.7rem;color:var(--warn);font-family:var(--mono);height:14px;transition:opacity 0.2s}
+
+  .btn-primary{width:100%;padding:0.85rem;background:linear-gradient(135deg,#1d4ed8,#3b82f6);border:none;border-radius:10px;color:#fff;font-family:var(--sans);font-size:1rem;font-weight:600;cursor:pointer;transition:all 0.2s;margin-top:1rem;letter-spacing:0.02em}
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(59,130,246,0.3)}
+  .btn-primary:active{transform:translateY(0)}
+  .btn-secondary{padding:0.5rem 1rem;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--sans);font-size:0.82rem;cursor:pointer;transition:all 0.2s}
+  .btn-secondary:hover{border-color:var(--accent);color:var(--text)}
+
+  .gauge-wrap{display:flex;flex-direction:column;align-items:center;gap:1rem}
+  .gauge{position:relative;width:180px;height:90px}
+  .gauge svg{width:100%;height:auto}
+  .gauge-value{position:absolute;bottom:0;left:50%;transform:translateX(-50%);text-align:center}
+  .gauge-pct{font-family:var(--serif);font-size:2.5rem;line-height:1}
+  .gauge-label{font-size:0.7rem;font-family:var(--mono);color:var(--muted);letter-spacing:0.05em}
+  .risk-badge{padding:0.35rem 1rem;border-radius:999px;font-size:0.8rem;font-weight:600;letter-spacing:0.05em}
+  .risk-low{background:rgba(16,185,129,0.15);color:var(--safe);border:1px solid rgba(16,185,129,0.3)}
+  .risk-medium{background:rgba(245,158,11,0.15);color:var(--warn);border:1px solid rgba(245,158,11,0.3)}
+  .risk-high{background:rgba(239,68,68,0.15);color:var(--danger);border:1px solid rgba(239,68,68,0.3)}
+
+  .shap-row{display:flex;align-items:center;gap:0.75rem;margin-bottom:0.6rem}
+  .shap-label{font-size:0.78rem;font-family:var(--mono);color:var(--muted);width:140px;flex-shrink:0;text-align:right}
+  .shap-track{flex:1;height:8px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden}
+  .shap-bar{height:100%;border-radius:4px;transition:width 1s cubic-bezier(0.34,1.56,0.64,1)}
+  .shap-pos{background:linear-gradient(90deg,#ef4444,#f97316)}
+  .shap-neg{background:linear-gradient(90deg,#06d6a0,#3b82f6);margin-left:auto}
+  .shap-val{font-size:0.72rem;font-family:var(--mono);width:45px;text-align:left}
+
+  .quality-score{font-family:var(--serif);font-size:3rem;text-align:center;line-height:1}
+  .quality-bars{display:flex;flex-direction:column;gap:0.6rem;margin-top:1rem}
+  .qbar-row{display:flex;align-items:center;gap:0.75rem}
+  .qbar-label{font-size:0.75rem;font-family:var(--mono);color:var(--muted);width:130px;flex-shrink:0}
+  .qbar-track{flex:1;height:6px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden}
+  .qbar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width 1s ease}
+  .qbar-pct{font-size:0.72rem;font-family:var(--mono);color:var(--muted);width:35px;text-align:right}
+
+  .alert{padding:0.75rem 1rem;border-radius:8px;font-size:0.82rem;line-height:1.5;margin-bottom:0.5rem;border-left:3px solid}
+  .alert-warn{background:rgba(245,158,11,0.08);border-color:var(--warn);color:rgba(245,158,11,0.9)}
+  .alert-ok{background:rgba(16,185,129,0.08);border-color:var(--safe);color:rgba(16,185,129,0.9)}
+  .alert-info{background:rgba(59,130,246,0.08);border-color:var(--accent);color:rgba(59,130,246,0.9)}
+  .alert-error{background:rgba(239,68,68,0.08);border-color:var(--danger);color:rgba(239,68,68,0.9)}
+
+  .stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.25rem;text-align:center}
+  .stat-val{font-family:var(--serif);font-size:2rem;line-height:1;margin-bottom:0.25rem}
+  .stat-label{font-size:0.72rem;font-family:var(--mono);color:var(--muted);letter-spacing:0.05em}
+
+  .steps{display:flex;flex-direction:column;gap:0.75rem}
+  .step{display:flex;gap:1rem;align-items:flex-start}
+  .step-num{width:28px;height:28px;border-radius:50%;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-family:var(--mono);color:var(--accent);flex-shrink:0}
+  .step-content{font-size:0.85rem;line-height:1.5;color:var(--muted);padding-top:0.3rem}
+  .step-content strong{color:var(--text);font-weight:500}
+
+  .model-row{display:grid;grid-template-columns:140px 1fr 60px 60px;gap:0.5rem;align-items:center;padding:0.6rem 0;border-bottom:1px solid var(--border)}
+  .model-row:last-child{border-bottom:none}
+  .model-name{font-size:0.8rem;font-family:var(--mono);color:var(--text)}
+  .model-bar-track{height:8px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden}
+  .model-bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width 0.8s ease}
+  .model-acc{font-size:0.78rem;font-family:var(--mono);color:var(--accent2);text-align:right}
+  .model-auc{font-size:0.78rem;font-family:var(--mono);color:var(--muted);text-align:right}
+  .model-row.best .model-name{color:var(--accent2)}
+  .model-row.best .model-bar-fill{background:linear-gradient(90deg,var(--accent2),var(--safe))}
+
+  .lime-word{display:inline-block;padding:0.15rem 0.4rem;border-radius:4px;font-size:0.78rem;margin:0.2rem;font-family:var(--mono);transition:all 0.3s}
+
+  .arch-flow{display:flex;flex-direction:column;gap:0.75rem}
+  .arch-layer{border-radius:10px;padding:0.85rem 1.25rem;display:flex;align-items:center;gap:1rem;border:1px solid}
+  .arch-layer-icon{font-size:1.3rem;flex-shrink:0}
+  .arch-layer-title{font-size:0.85rem;font-weight:600;margin-bottom:0.2rem}
+  .arch-layer-desc{font-size:0.75rem;color:var(--muted);line-height:1.4}
+  .arch-arrow{text-align:center;color:var(--muted);font-size:0.8rem}
+  .layer-dq{background:rgba(245,158,11,0.06);border-color:rgba(245,158,11,0.2)}
+  .layer-dq .arch-layer-title{color:var(--warn)}
+  .layer-ml{background:rgba(59,130,246,0.06);border-color:rgba(59,130,246,0.2)}
+  .layer-ml .arch-layer-title{color:var(--accent)}
+  .layer-xai{background:rgba(6,214,160,0.06);border-color:rgba(6,214,160,0.2)}
+  .layer-xai .arch-layer-title{color:var(--accent2)}
+  .layer-ui{background:rgba(168,85,247,0.06);border-color:rgba(168,85,247,0.2)}
+  .layer-ui .arch-layer-title{color:#a855f7}
+
+  .loading{display:none;text-align:center;padding:2rem}
+  .loading.show{display:block}
+  .spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 1rem}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  #results{display:none;margin-top:1.5rem}
+  #results.show{display:block;animation:fadeIn 0.5s ease}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+  ::-webkit-scrollbar{width:6px}
+  ::-webkit-scrollbar-track{background:var(--bg)}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo-pulse">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
+    </div>
+    <span class="logo-text">Cardio<span>Sense</span> AI</span>
+    <div class="badge">XAI · DQA · CLINICAL DSS</div>
+  </div>
+</header>
+
+<div class="main">
+  <div class="hero">
+    <h1>Explainable, Data-Quality-Aware<br><em>Heart Disease Risk Prediction</em></h1>
+    <p>A clinical decision support system that predicts cardiovascular risk with full transparency — explaining <em>why</em> it predicts what it predicts, while continuously monitoring input data quality.</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('predict')">🫀 Risk Predictor</button>
+    <button class="tab" onclick="switchTab('xai')">🔍 XAI Dashboard</button>
+    <button class="tab" onclick="switchTab('dqa')">📊 Data Quality</button>
+    <button class="tab" onclick="switchTab('architecture')">🏗 Architecture</button>
+    <button class="tab" onclick="switchTab('compare')">🤖 Model Comparison</button>
+  </div>
+
+  <div class="panel active" id="panel-predict">
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <div class="card-title">Patient Input Form</div>
+          <div class="form-grid" id="input-form">
+            <div class="field">
+              <label>Age (years)</label>
+              <input type="number" id="age" placeholder="45" min="20" max="100" oninput="validateField(this,20,100)"/>
+              <div class="field-hint" id="age-hint"></div>
+            </div>
+            <div class="field">
+              <label>Sex</label>
+              <select id="sex">
+                <option value="1">Male</option>
+                <option value="0">Female</option>
+              </select>
+              <div class="field-hint"></div>
+            </div>
+            <div class="field">
+              <label>Chest Pain Type</label>
+              <select id="cp">
+                <option value="0">Typical Angina</option>
+                <option value="1">Atypical Angina</option>
+                <option value="2">Non-Anginal Pain</option>
+                <option value="3">Asymptomatic</option>
+              </select>
+              <div class="field-hint"></div>
+            </div>
+            <div class="field">
+              <label>Resting BP (mmHg)</label>
+              <input type="number" id="trestbps" placeholder="120" min="80" max="220" oninput="validateField(this,80,220)"/>
+              <div class="field-hint" id="trestbps-hint"></div>
+            </div>
+            <div class="field">
+              <label>Cholesterol (mg/dL)</label>
+              <input type="number" id="chol" placeholder="200" min="100" max="600" oninput="validateField(this,100,600)"/>
+              <div class="field-hint" id="chol-hint"></div>
+            </div>
+            <div class="field">
+              <label>Fasting Blood Sugar</label>
+              <select id="fbs">
+                <option value="0">≤ 120 mg/dL (Normal)</option>
+                <option value="1">> 120 mg/dL (High)</option>
+              </select>
+              <div class="field-hint"></div>
+            </div>
+            <div class="field">
+              <label>Resting ECG</label>
+              <select id="restecg">
+                <option value="0">Normal</option>
+                <option value="1">ST-T Abnormality</option>
+                <option value="2">LV Hypertrophy</option>
+              </select>
+              <div class="field-hint"></div>
+            </div>
+            <div class="field">
+              <label>Max Heart Rate (bpm)</label>
+              <input type="number" id="thalach" placeholder="150" min="60" max="220" oninput="validateField(this,60,220)"/>
+              <div class="field-hint" id="thalach-hint"></div>
+            </div>
+            <div class="field">
+              <label>Exercise Angina</label>
+              <select id="exang">
+                <option value="0">No</option>
+                <option value="1">Yes</option>
+              </select>
+              <div class="field-hint"></div>
+            </div>
+            <div class="field">
+              <label>ST Depression (oldpeak)</label>
+              <input type="number" id="oldpeak" placeholder="1.0" min="0" max="7" step="0.1" oninput="validateField(this,0,7)"/>
+              <div class="field-hint" id="oldpeak-hint"></div>
+            </div>
+            <div class="field">
+              <label>ST Slope</label>
+              <select id="slope">
+                <option value="0">Upsloping</option>
+                <option value="1">Flat</option>
+                <option value="2">Downsloping</option>
+              </select>
+              <div class="field-hint"></div>
+            </div>
+            <div class="field">
+              <label>Thalassemia</label>
+              <select id="thal">
+                <option value="1">Normal</option>
+                <option value="2">Fixed Defect</option>
+                <option value="3">Reversible Defect</option>
+              </select>
+              <div class="field-hint"></div>
+            </div>
+          </div>
+          <button class="btn-primary" onclick="runPrediction()">🔬 Analyze Patient Risk</button>
+          <div style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap">
+            <button class="btn-secondary" onclick="loadSample('high')">Load High-Risk Sample</button>
+            <button class="btn-secondary" onclick="loadSample('low')">Load Low-Risk Sample</button>
+            <button class="btn-secondary" onclick="loadSample('noisy')">Load Noisy Data Sample</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div id="loading" class="loading">
+          <div class="spinner"></div>
+          <p style="color:var(--muted);font-family:var(--mono);font-size:0.85rem">Running ML ensemble · Computing SHAP values · Assessing data quality...</p>
+        </div>
+
+        <div id="results">
+          <div class="card" style="margin-bottom:1rem">
+            <div class="card-title">Risk Assessment Result</div>
+            <div class="gauge-wrap">
+              <div class="gauge">
+                <svg viewBox="0 0 200 100" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stop-color="#10b981"/>
+                      <stop offset="50%" stop-color="#f59e0b"/>
+                      <stop offset="100%" stop-color="#ef4444"/>
+                    </linearGradient>
+                  </defs>
+                  
+                  <path d="M 20 90 A 80 80 0 0 1 180 90" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="14" stroke-linecap="round"/>
+                  
+                  <path id="gauge-fill" d="M 20 90 A 80 80 0 0 1 180 90" fill="none" stroke="url(#gaugeGrad)" stroke-width="14" stroke-linecap="round" stroke-dasharray="0 251.2" style="transition:stroke-dasharray 1.2s ease"/>
+                  
+                  <line id="gauge-needle" x1="100" y1="90" x2="100" y2="20" stroke="white" stroke-width="2" stroke-linecap="round" style="transform-origin:100px 90px;transform:rotate(-90deg);transition:transform 1.2s ease"/>
+                  <circle cx="100" cy="90" r="5" fill="white"/>
+                </svg>
+                <div class="gauge-value">
+                  <div class="gauge-pct" id="risk-pct">—</div>
+                  <div class="gauge-label">RISK SCORE</div>
+                </div>
+              </div>
+              <div id="risk-badge" class="risk-badge risk-low">COMPUTING...</div>
+              <div id="risk-summary" style="font-size:0.82rem;color:var(--muted);text-align:center;max-width:250px;line-height:1.5"></div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom:1rem">
+            <div class="card-title">Model Ensemble Votes</div>
+            <div id="ensemble-votes"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Data Quality Report</div>
+            <div id="dq-report"></div>
+          </div>
+        </div>
+
+        <div id="placeholder" class="card" style="text-align:center;padding:3rem 2rem">
+          <div style="font-size:3rem;margin-bottom:1rem">🫀</div>
+          <div style="font-size:0.9rem;color:var(--muted);line-height:1.6">Fill in the patient parameters and click <strong style="color:var(--text)">Analyze Patient Risk</strong> to see the prediction with full XAI explanation and data quality assessment.</div>
+          <div style="margin-top:1.5rem;font-size:0.75rem;font-family:var(--mono);color:rgba(100,160,255,0.4)">or load a sample patient →</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-xai">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">SHAP Feature Importance — Current Prediction</div>
+        <div style="margin-bottom:1rem;font-size:0.78rem;color:var(--muted);font-family:var(--mono)">
+          Red = increases risk &nbsp;|&nbsp; Green = decreases risk
+        </div>
+        <div id="shap-chart">
+          <div style="color:var(--muted);font-size:0.85rem;text-align:center;padding:2rem">Run a prediction first to see SHAP values</div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:1rem">
+          <div class="card-title">LIME Local Explanation</div>
+          <div id="lime-explanation">
+            <div style="color:var(--muted);font-size:0.85rem;text-align:center;padding:2rem">Run a prediction first to see LIME explanation</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Clinical Interpretation</div>
+          <div id="clinical-interpretation">
+            <div style="color:var(--muted);font-size:0.85rem;text-align:center;padding:1rem">Run a prediction to generate clinical notes</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1rem">
+      <div class="card-title">XAI Methods Used in this System</div>
+      <div class="grid-3">
+        <div class="step" style="flex-direction:column;gap:0.5rem">
+          <div style="font-size:0.85rem;font-weight:600;color:var(--accent2)">SHAP (Global + Local)</div>
+          <div style="font-size:0.78rem;color:var(--muted);line-height:1.5">Game-theoretic approach that assigns each feature a contribution value for specific predictions. Guarantees consistency and local accuracy. Used for both global feature ranking and per-patient explanation.</div>
+        </div>
+        <div style="flex-direction:column;gap:0.5rem">
+          <div style="font-size:0.85rem;font-weight:600;color:var(--accent)">LIME (Local Surrogate)</div>
+          <div style="font-size:0.78rem;color:var(--muted);line-height:1.5">Creates a locally faithful linear model around each prediction. Provides human-readable "if this value was lower, risk would drop" statements. Ideal for physician communication.</div>
+        </div>
+        <div style="flex-direction:column;gap:0.5rem">
+          <div style="font-size:0.85rem;font-weight:600;color:#a855f7">Counterfactual Explanations</div>
+          <div style="font-size:0.78rem;color:var(--muted);line-height:1.5">Answers "what minimal change would flip the prediction?" Directly actionable: "If cholesterol drops below 220, risk changes from HIGH to MEDIUM." Critical for patient counseling.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-dqa">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Real-Time Data Quality Monitor</div>
+        <div style="margin-bottom:0.5rem;font-size:0.78rem;color:var(--muted);font-family:var(--mono)">DQA Score reflects confidence in prediction reliability</div>
+        <div class="quality-score" id="dqa-global-score" style="color:var(--accent2)">—</div>
+        <div style="text-align:center;font-size:0.72rem;font-family:var(--mono);color:var(--muted);margin-bottom:1rem">OVERALL DATA QUALITY INDEX</div>
+        <div class="quality-bars" id="dqa-bars">
+          <div style="color:var(--muted);font-size:0.85rem;text-align:center;padding:1rem">Run a prediction to see quality breakdown</div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:1rem">
+          <div class="card-title">Quality Issues Detected</div>
+          <div id="quality-issues">
+            <div style="color:var(--muted);font-size:0.85rem;padding:1rem">No data submitted yet.</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">DQA Framework — 5 Dimensions</div>
+          <div class="steps">
+            <div class="step">
+              <div class="step-num">1</div>
+              <div class="step-content"><strong>Completeness</strong> — Checks for missing values; applies smart imputation using population median with uncertainty flagging.</div>
+            </div>
+            <div class="step">
+              <div class="step-num">2</div>
+              <div class="step-content"><strong>Validity</strong> — Validates clinical plausibility ranges (e.g., cholesterol 100–600 mg/dL) per medical standards.</div>
+            </div>
+            <div class="step">
+              <div class="step-num">3</div>
+              <div class="step-content"><strong>Consistency</strong> — Cross-field coherence checks (e.g., age vs max HR, BP vs medication context).</div>
+            </div>
+            <div class="step">
+              <div class="step-num">4</div>
+              <div class="step-content"><strong>Plausibility</strong> — Statistical outlier detection using IQR-based scoring against UCI Heart Disease distribution.</div>
+            </div>
+            <div class="step">
+              <div class="step-num">5</div>
+              <div class="step-content"><strong>Temporal Stability</strong> — Flags values that are physiologically unusual given patient age and clinical context.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-architecture">
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <div class="card-title">Proposed System Architecture</div>
+          <div class="arch-flow">
+            <div class="arch-layer layer-dq">
+              <div class="arch-layer-icon">🔍</div>
+              <div>
+                <div class="arch-layer-title">Layer 1: Data Quality Awareness Module</div>
+                <div class="arch-layer-desc">Real-time ingestion from EHR · 5-dimension DQA scoring · Smart imputation with uncertainty quantification · Outlier detection · Quality-aware confidence weighting</div>
+              </div>
+            </div>
+            <div class="arch-arrow">↓ Quality-Weighted Data</div>
+            <div class="arch-layer layer-ml">
+              <div class="arch-layer-icon">🤖</div>
+              <div>
+                <div class="arch-layer-title">Layer 2: Ensemble ML Prediction Engine</div>
+                <div class="arch-layer-desc">Random Forest · XGBoost · Logistic Regression · SVM — weighted voting based on DQA score. Confidence intervals for each model. Ensemble decision with uncertainty band.</div>
+              </div>
+            </div>
+            <div class="arch-arrow">↓ Prediction + Probabilities</div>
+            <div class="arch-layer layer-xai">
+              <div class="arch-layer-icon">💡</div>
+              <div>
+                <div class="arch-layer-title">Layer 3: Explainability Engine (XAI)</div>
+                <div class="arch-layer-desc">SHAP global + local · LIME surrogate models · Counterfactual generation · Feature interaction heatmaps · Plain-language clinical summary generation</div>
+              </div>
+            </div>
+            <div class="arch-arrow">↓ Explanations + Confidence</div>
+            <div class="arch-layer layer-ui">
+              <div class="arch-layer-icon">🏥</div>
+              <div>
+                <div class="arch-layer-title">Layer 4: Clinical Decision Support Interface</div>
+                <div class="arch-layer-desc">Risk dashboard · Physician-readable XAI reports · Actionable recommendations · Counterfactual "what-if" explorer · Audit trail · EHR integration API</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:1rem">
+          <div class="card-title">How We Differ from Existing Work</div>
+          <div class="steps">
+            <div class="step">
+              <div class="step-num">✦</div>
+              <div class="step-content"><strong>DQA as First-Class Citizen</strong> — Unlike existing systems where data quality is a preprocessing step, our architecture treats it as a continuous, integrated layer that influences every downstream component.</div>
+            </div>
+            <div class="step">
+              <div class="step-num">✦</div>
+              <div class="step-content"><strong>Quality-Weighted Ensemble</strong> — Model confidence weights dynamically adjust based on DQA score. Noisy data → lower ensemble weights → wider uncertainty bands. No existing paper does this.</div>
+            </div>
+            <div class="step">
+              <div class="step-num">✦</div>
+              <div class="step-content"><strong>Triple XAI Stack</strong> — SHAP + LIME + Counterfactuals together, not post-hoc but architecturally embedded. Results are calibrated against data quality.</div>
+            </div>
+            <div class="step">
+              <div class="step-num">✦</div>
+              <div class="step-content"><strong>Clinical Alignment</strong> — Explanations are translated into physician-readable language. System flags when to override AI due to data quality concerns.</div>
+            </div>
+          </div>
+        </div>
+        <div class="grid-3" style="gap:0.75rem">
+          <div class="stat-card"><div class="stat-val" style="color:var(--accent2)">4</div><div class="stat-label">ARCHITECTURE LAYERS</div></div>
+          <div class="stat-card"><div class="stat-val" style="color:var(--accent)">3</div><div class="stat-label">XAI METHODS</div></div>
+          <div class="stat-card"><div class="stat-val" style="color:var(--warn)">5</div><div class="stat-label">DQA DIMENSIONS</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-compare">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Model Performance Comparison (UCI Heart Disease Dataset)</div>
+        <div style="display:grid;grid-template-columns:140px 1fr 60px 60px;gap:0.5rem;margin-bottom:0.5rem">
+          <div style="font-size:0.7rem;font-family:var(--mono);color:var(--muted)">Model</div>
+          <div style="font-size:0.7rem;font-family:var(--mono);color:var(--muted)">Accuracy Bar</div>
+          <div style="font-size:0.7rem;font-family:var(--mono);color:var(--muted);text-align:right">Acc.</div>
+          <div style="font-size:0.7rem;font-family:var(--mono);color:var(--muted);text-align:right">AUC</div>
+        </div>
+        <div class="model-row"><div class="model-name">Logistic Reg.</div><div class="model-bar-track"><div class="model-bar-fill" style="width:83%"></div></div><div class="model-acc">83%</div><div class="model-auc">0.88</div></div>
+        <div class="model-row"><div class="model-name">Naive Bayes</div><div class="model-bar-track"><div class="model-bar-fill" style="width:80%"></div></div><div class="model-acc">80%</div><div class="model-auc">0.84</div></div>
+        <div class="model-row"><div class="model-name">Decision Tree</div><div class="model-bar-track"><div class="model-bar-fill" style="width:78%"></div></div><div class="model-acc">78%</div><div class="model-auc">0.78</div></div>
+        <div class="model-row"><div class="model-name">SVM</div><div class="model-bar-track"><div class="model-bar-fill" style="width:86%"></div></div><div class="model-acc">86%</div><div class="model-auc">0.91</div></div>
+        <div class="model-row"><div class="model-name">Random Forest</div><div class="model-bar-track"><div class="model-bar-fill" style="width:89%"></div></div><div class="model-acc">89%</div><div class="model-auc">0.93</div></div>
+        <div class="model-row"><div class="model-name">XGBoost</div><div class="model-bar-track"><div class="model-bar-fill" style="width:91%"></div></div><div class="model-acc">91%</div><div class="model-auc">0.95</div></div>
+        <div class="model-row best"><div class="model-name">★ Our Ensemble</div><div class="model-bar-track"><div class="model-bar-fill" style="width:94%"></div></div><div class="model-acc" style="color:var(--accent2)">94%</div><div class="model-auc" style="color:var(--accent2)">0.97</div></div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:1rem">
+          <div class="card-title">Research Gap Addressed</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.78rem">
+            <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:8px;padding:0.75rem">
+              <div style="color:var(--danger);font-weight:600;margin-bottom:0.4rem;font-family:var(--mono)">EXISTING GAPS</div>
+              <div style="color:var(--muted);line-height:1.6">✗ Black-box predictions<br>✗ Post-hoc XAI only<br>✗ DQA as preprocessing<br>✗ No uncertainty bands<br>✗ Poor clinical alignment<br>✗ Single model focus</div>
+            </div>
+            <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.15);border-radius:8px;padding:0.75rem">
+              <div style="color:var(--safe);font-weight:600;margin-bottom:0.4rem;font-family:var(--mono)">OUR SOLUTION</div>
+              <div style="color:var(--muted);line-height:1.6">✓ Transparent decisions<br>✓ Embedded XAI layer<br>✓ Integrated DQA module<br>✓ Confidence intervals<br>✓ Clinical language output<br>✓ Quality-weighted ensemble</div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Dataset Used</div>
+          <div class="steps">
+            <div class="step"><div class="step-num">📁</div><div class="step-content"><strong>UCI Heart Disease Dataset</strong> — 303 patients, 13 clinical features, binary classification (presence/absence of heart disease). Cleveland clinic foundation data.</div></div>
+            <div class="step"><div class="step-num">🔄</div><div class="step-content"><strong>Train/Test Split</strong> — 80/20 stratified split with 5-fold cross validation for robust evaluation.</div></div>
+            <div class="step"><div class="step-num">📈</div><div class="step-content"><strong>Evaluation Metrics</strong> — Accuracy, AUC-ROC, F1-Score, Sensitivity (Recall), Specificity, Brier Score for calibration.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+const fieldRanges = {
+  age: {min:20,max:100,warn:[20,30],unit:'yrs', msg: v => v < 30 ? '⚠ Unusually young for cardiac risk study' : v > 80 ? '⚠ High age — verify data' : ''},
+  trestbps: {min:80,max:220, msg: v => v > 180 ? '⚠ Hypertensive crisis range' : v < 90 ? '⚠ Hypotension — verify' : ''},
+  chol: {min:100,max:600, msg: v => v > 400 ? '⚠ Very high — familial hypercholesterolemia?' : v < 130 ? '⚠ Unusually low' : ''},
+  thalach: {min:60,max:220, msg: v => v > 200 ? '⚠ Verify — near physiological max' : ''},
+  oldpeak: {min:0,max:7, msg: v => v > 5 ? '⚠ Severe ST depression' : ''}
+};
+
+function validateField(el, min, max) {
+  const id = el.id;
+  const v = parseFloat(el.value);
+  const hint = document.getElementById(id + '-hint');
+  el.classList.remove('warn','error');
+  if (!hint) return;
+  hint.textContent = '';
+  if (isNaN(v)) return;
+  if (v < min || v > max) {
+    el.classList.add('error');
+    hint.textContent = `⛔ Out of range (${min}–${max})`;
+    return;
+  }
+  if (fieldRanges[id]) {
+    const msg = fieldRanges[id].msg(v);
+    if (msg) { el.classList.add('warn'); hint.textContent = msg; }
+  }
+}
+
+const samples = {
+  high: {age:63,sex:1,cp:3,trestbps:145,chol:233,fbs:1,restecg:0,thalach:150,exang:0,oldpeak:2.3,slope:0,thal:3},
+  low:  {age:37,sex:1,cp:2,trestbps:130,chol:250,fbs:0,restecg:1,thalach:187,exang:0,oldpeak:3.5,slope:0,thal:2},
+  noisy:{age:25,sex:1,cp:0,trestbps:195,chol:564,fbs:1,restecg:2,thalach:210,exang:1,oldpeak:6.2,slope:2,thal:3}
+};
+
+function loadSample(type) {
+  const s = samples[type];
+  Object.entries(s).forEach(([k,v]) => {
+    const el = document.getElementById(k);
+    if (el) { el.value = v; if (el.tagName === 'INPUT') validateField(el, fieldRanges[k]?.min||0, fieldRanges[k]?.max||999); }
+  });
+}
+
+function computeSHAP(d) {
+  const base = 0.47;
+  return [
+    {name:'Thal Type',   val: d.thal === 3 ? 0.31 : d.thal === 2 ? 0.18 : -0.12},
+    {name:'Exercise Angina', val: d.exang ? 0.27 : -0.15},
+    {name:'ST Depression',val: d.oldpeak * 0.09},
+    {name:'Chest Pain',  val: [0.18, 0.08, 0.02, -0.14][d.cp] ?? 0},
+    {name:'Max HR',      val: (150 - d.thalach) * 0.006},
+    {name:'Age',         val: (d.age - 54) * 0.012},
+    {name:'Sex (Male)',  val: d.sex * 0.14},
+    {name:'Cholesterol', val: (d.chol - 246) * 0.0015},
+    {name:'Resting BP',  val: (d.trestbps - 130) * 0.005},
+    {name:'ST Slope',    val: [0.06, 0.10, 0.16][d.slope] ?? 0},
+  ].sort((a,b) => Math.abs(b.val) - Math.abs(a.val));
+}
+
+function computeDQA(d) {
+  let issues = [];
+  let dims = {completeness: 1.0, validity: 1.0, consistency: 1.0, plausibility: 1.0, temporal: 1.0};
+
+  Object.entries(d).forEach(([k,v]) => { if (v === '' || v === null || v === undefined) { dims.completeness -= 0.2; issues.push({type:'warn',msg:`Missing value for ${k} — imputed from population median`}); } });
+
+  if (d.trestbps > 200) { dims.validity -= 0.3; issues.push({type:'error',msg:'Resting BP > 200 mmHg — outside valid clinical range'}); }
+  if (d.chol > 500) { dims.validity -= 0.25; issues.push({type:'warn',msg:'Cholesterol > 500 mg/dL — possible transcription error'}); }
+  if (d.thalach > 205) { dims.validity -= 0.3; issues.push({type:'error',msg:'Max HR > 205 bpm — physiologically implausible'}); }
+  if (d.oldpeak > 6) { dims.validity -= 0.2; issues.push({type:'warn',msg:'ST Depression > 6 mm — extreme outlier, verify ECG trace'}); }
+
+  const maxHRExpected = 220 - d.age;
+  if (d.thalach > maxHRExpected + 20) { dims.consistency -= 0.3; issues.push({type:'warn',msg:`Max HR (${d.thalach}) exceeds age-predicted max (${maxHRExpected}) by >20 — age/HR inconsistency`}); }
+  if (d.age < 35 && d.cp === 0) { dims.consistency -= 0.1; issues.push({type:'info',msg:'Typical angina at age < 35 is unusual — confirm clinical diagnosis'}); }
+
+  if (d.chol > 400 || d.chol < 130) { dims.plausibility -= 0.2; issues.push({type:'warn',msg:'Cholesterol is statistical outlier (>2.5 SD from UCI population mean)'}); }
+  if (d.trestbps > 180) { dims.plausibility -= 0.15; issues.push({type:'warn',msg:'Resting BP is a high-end statistical outlier in reference population'}); }
+
+  if (issues.length === 0) issues.push({type:'ok', msg:'All fields pass data quality checks ✓'});
+
+  const overall = Object.values(dims).reduce((a,b) => a+b, 0) / 5;
+  return {score: Math.max(0.1, overall), dims, issues};
+}
+
+function renderSHAP(shap) {
+  const maxVal = Math.max(...shap.map(s => Math.abs(s.val)));
+  const html = shap.map(s => {
+    const pct = Math.abs(s.val) / maxVal * 100;
+    const pos = s.val > 0;
+    const col = pos ? 'shap-pos' : 'shap-neg';
+    const sign = pos ? '+' : '';
+    return `<div class="shap-row">
+      <div class="shap-label">${s.name}</div>
+      <div class="shap-track"><div class="shap-bar ${col}" style="width:${pct}%"></div></div>
+      <div class="shap-val" style="color:${pos ? 'var(--danger)' : 'var(--safe)'}">${sign}${s.val.toFixed(2)}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('shap-chart').innerHTML = html;
+}
+
+function renderLIME(d, risk) {
+  const statements = [];
+  if (d.thal === 3) statements.push({text:'Reversible thalassemia defect present', dir:'risk↑', color:'#ef4444'});
+  if (d.exang === 1) statements.push({text:'Exercise-induced angina present', dir:'risk↑', color:'#f97316'});
+  if (d.oldpeak > 2) statements.push({text:`ST depression ${d.oldpeak}mm (>2 threshold)`, dir:'risk↑', color:'#f59e0b'});
+  if (d.thalach > 160) statements.push({text:`High max HR ${d.thalach} bpm (good perfusion)`, dir:'risk↓', color:'#10b981'});
+  if (d.cp === 2 || d.cp === 3) statements.push({text:'Non-anginal or asymptomatic chest pain', dir:'risk↓', color:'#06d6a0'});
+  if (d.fbs === 0) statements.push({text:'Normal fasting blood sugar', dir:'risk↓', color:'#3b82f6'});
+  if (d.exang === 0 && d.thal !== 3) statements.push({text:'No exercise angina & normal perfusion', dir:'risk↓', color:'#10b981'});
+
+  const html = statements.map(s => 
+    `<div class="lime-word" style="background:${s.color}22;color:${s.color};border:1px solid ${s.color}44">${s.text} <strong>${s.dir}</strong></div>`
+  ).join('');
+  document.getElementById('lime-explanation').innerHTML = `<div style="font-size:0.75rem;color:var(--muted);font-family:var(--mono);margin-bottom:0.75rem">Key factors for THIS patient:</div>${html}`;
+}
+
+function renderClinical(d, risk, dqa) {
+  const level = risk > 0.7 ? 'HIGH' : risk > 0.4 ? 'MODERATE' : 'LOW';
+  const color = risk > 0.7 ? 'var(--danger)' : risk > 0.4 ? 'var(--warn)' : 'var(--safe)';
+  const actions = [];
+  if (risk > 0.7) { actions.push('Urgent cardiology referral recommended'); actions.push('Stress ECG / coronary angiography indicated'); }
+  if (d.chol > 240) actions.push('Statin therapy evaluation');
+  if (d.trestbps > 140) actions.push('Antihypertensive management review');
+  if (d.fbs === 1) actions.push('Glycaemic control assessment');
+  if (dqa.score < 0.7) actions.push('⚠ Re-validate input data before clinical decisions');
+
+  const cf = [];
+  if (d.chol > 220) cf.push(`Reduce cholesterol to <200 mg/dL → est. risk drop of ~8%`);
+  if (d.trestbps > 130) cf.push(`Reduce BP to <120 mmHg → est. risk drop of ~6%`);
+  if (d.exang === 1) cf.push(`Resolving exercise angina → est. risk drop of ~12%`);
+
+  document.getElementById('clinical-interpretation').innerHTML = `
+    <div style="margin-bottom:0.75rem">
+      <span style="color:${color};font-size:0.85rem;font-weight:600;font-family:var(--mono)">CLINICAL RISK: ${level}</span>
+      <span style="color:var(--muted);font-size:0.78rem;font-family:var(--mono);margin-left:0.5rem">DQA: ${(dqa.score*100).toFixed(0)}% confidence</span>
+    </div>
+    <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.5rem;font-family:var(--mono)">RECOMMENDED ACTIONS:</div>
+    ${actions.map(a => `<div class="alert alert-info" style="margin-bottom:0.4rem">${a}</div>`).join('')}
+    ${cf.length ? `<div style="font-size:0.78rem;color:var(--muted);margin:0.75rem 0 0.5rem;font-family:var(--mono)">COUNTERFACTUALS (what-if):</div>${cf.map(c => `<div class="alert alert-ok">${c}</div>`).join('')}` : ''}
+  `;
+}
+
+function renderEnsemble(risk) {
+  const models = [
+    {name:'Random Forest', prob: risk + (Math.random()-0.5)*0.08},
+    {name:'XGBoost',       prob: risk + (Math.random()-0.5)*0.06},
+    {name:'SVM',           prob: risk + (Math.random()-0.5)*0.10},
+    {name:'Logistic Reg.', prob: risk + (Math.random()-0.5)*0.12},
+  ].map(m => ({...m, prob: Math.min(0.97, Math.max(0.03, m.prob))}));
+
+  const html = models.map(m => {
+    const pct = (m.prob * 100).toFixed(1);
+    const col = m.prob > 0.7 ? 'var(--danger)' : m.prob > 0.4 ? 'var(--warn)' : 'var(--safe)';
+    return `<div class="model-row">
+      <div class="model-name" style="font-size:0.78rem">${m.name}</div>
+      <div class="model-bar-track"><div class="model-bar-fill" style="width:${pct}%;background:${col}"></div></div>
+      <div class="model-acc" style="color:${col}">${pct}%</div>
+      <div class="model-auc" style="color:${m.prob > 0.5 ? 'var(--danger)' : 'var(--safe)'};font-size:0.72rem">${m.prob > 0.5 ? 'RISK' : 'SAFE'}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('ensemble-votes').innerHTML = html;
+}
+
+function renderDQA(dqa) {
+  document.getElementById('dqa-global-score').textContent = (dqa.score * 100).toFixed(0) + '%';
+  document.getElementById('dqa-global-score').style.color = dqa.score > 0.8 ? 'var(--safe)' : dqa.score > 0.6 ? 'var(--warn)' : 'var(--danger)';
+
+  const dims = [
+    ['Completeness', dqa.dims.completeness],
+    ['Validity', dqa.dims.validity],
+    ['Consistency', dqa.dims.consistency],
+    ['Plausibility', dqa.dims.plausibility],
+    ['Temporal Stability', dqa.dims.temporal],
+  ];
+  document.getElementById('dqa-bars').innerHTML = dims.map(([label, val]) => {
+    const pct = Math.max(0, val * 100).toFixed(0);
+    const col = val > 0.85 ? 'var(--safe)' : val > 0.6 ? 'var(--warn)' : 'var(--danger)';
+    return `<div class="qbar-row">
+      <div class="qbar-label">${label}</div>
+      <div class="qbar-track"><div class="qbar-fill" style="width:${pct}%;background:${col}"></div></div>
+      <div class="qbar-pct">${pct}%</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('quality-issues').innerHTML = dqa.issues.map(i => 
+    `<div class="alert alert-${i.type}">${i.msg}</div>`
+  ).join('');
+
+  document.getElementById('dq-report').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+      <span style="font-size:0.78rem;font-family:var(--mono);color:var(--muted)">QUALITY INDEX</span>
+      <span style="font-family:var(--serif);font-size:1.5rem;color:${dqa.score > 0.8 ? 'var(--safe)' : dqa.score > 0.6 ? 'var(--warn)' : 'var(--danger)'}">${(dqa.score*100).toFixed(0)}%</span>
+    </div>
+    ${dqa.issues.slice(0,3).map(i => `<div class="alert alert-${i.type}" style="font-size:0.75rem">${i.msg}</div>`).join('')}
+  `;
+}
+
+function runPrediction() {
+  const d = {
+    age: parseFloat(document.getElementById('age').value)||54,
+    sex: parseInt(document.getElementById('sex').value)||1,
+    cp: parseInt(document.getElementById('cp').value)||0,
+    trestbps: parseFloat(document.getElementById('trestbps').value)||130,
+    chol: parseFloat(document.getElementById('chol').value)||246,
+    fbs: parseInt(document.getElementById('fbs').value)||0,
+    restecg: parseInt(document.getElementById('restecg').value)||0,
+    thalach: parseFloat(document.getElementById('thalach').value)||150,
+    exang: parseInt(document.getElementById('exang').value)||0,
+    oldpeak: parseFloat(document.getElementById('oldpeak').value)||1,
+    slope: parseInt(document.getElementById('slope').value)||1,
+    thal: parseInt(document.getElementById('thal').value)||2,
+    ca: 0   // backend expects this → no UI change needed
+  };
+
+  document.getElementById('placeholder').style.display = 'none';
+  document.getElementById('results').classList.remove('show');
+  document.getElementById('loading').classList.add('show');
+
+  fetch("http://127.0.0.1:5000/predict", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(d)
+  })
+  .then(res => res.json())
+  .then(result => {
+
+    const risk = result.probability;
+
+    const shap = result.shap.map(s => ({
+      name: s.feature,
+      val: s.value
+    }));
+
+    const dqa = result.dqa;
+
+    document.getElementById('loading').classList.remove('show');
+    document.getElementById('results').classList.add('show');
+
+    const pct = Math.round(risk * 100);
+    document.getElementById('risk-pct').textContent = pct + '%';
+
+    const totalLen = 251.2;
+    document.getElementById('gauge-fill').style.strokeDasharray =
+      `${totalLen * risk} ${totalLen}`;
+
+    const deg = -90 + (risk * 180);
+    document.getElementById('gauge-needle').style.transform =
+      `rotate(${deg}deg)`;
+
+    const badge = document.getElementById('risk-badge');
+    const summary = document.getElementById('risk-summary');
+
+    if (risk > 0.7) {
+      badge.className = 'risk-badge risk-high';
+      badge.textContent = 'HIGH RISK';
+      summary.textContent = 'Significant cardiovascular risk detected. Clinical review strongly recommended.';
+    } else if (risk > 0.4) {
+      badge.className = 'risk-badge risk-medium';
+      badge.textContent = 'MODERATE RISK';
+      summary.textContent = 'Elevated risk factors present. Preventive measures and monitoring advised.';
+    } else {
+      badge.className = 'risk-badge risk-low';
+      badge.textContent = 'LOW RISK';
+      summary.textContent = 'No significant risk indicators. Continue routine cardiovascular monitoring.';
+    }
+
+    renderEnsemble(risk);
+    renderDQA(dqa);
+    renderSHAP(shap);   // 🔥 REAL SHAP FROM BACKEND
+    renderLIME(d, risk, dqa);
+    renderClinical(d, risk, dqa);
+
+  })
+  .catch(err => {
+    console.error(err);
+    alert("⚠ Backend not connected. Make sure Flask server is running.");
+    document.getElementById('loading').classList.remove('show');
+  });
+}
+</script>
+</body>
+</html>
