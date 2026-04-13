@@ -44,10 +44,5 @@ Use these values in the UI to see how the system reacts to different clinical sc
 - Age: 25, Sex: Male, Resting BP: 210, Cholesterol: 564, Max HR: 210
 *(Notice how the Data Quality score drops and issues are flagged.)*
 
-## 🧠 Explainability in Viva / Defense
-
-If asked to explain this system during a viva:
-
-* **What does the ML Model do?** It's trained on historical UCI clinical data. XGBoost is used due to its high tabular data performance. It learns patterns between 13 clinical features and the presence of heart disease.
-* **Why SHAP?** SHAP treats the model as a cooperative game where features are players. It distributes the prediction "payout" fairly among features. It allows doctors to see that, for example, "the patient's risk is 80%, and +20% of that is solely due to their high cholesterol."
+#
 * **Why DQA?** "Garbage in, garbage out." Clinical data is often noisy or misentered. The backend intercepts the data and runs rule-based clinical checks (e.g., checking if max HR exceeds `220 - age`). It passes this confidence score to the UI, so doctors know whether to trust the prediction.
